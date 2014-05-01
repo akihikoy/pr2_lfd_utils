@@ -44,7 +44,7 @@ import bag2mat
 import generalUtils
 import arWorldModel
 import numpy as np
-import skillParse
+#import skillParse
 import glob
 import os.path
 import pickle

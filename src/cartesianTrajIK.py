@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import roslib; roslib.load_manifest('pr2_unstructured_lfd')
+import roslib; roslib.load_manifest('pr2_lfd_utils')
 import rospy
 import actionlib as al  
 from pr2_controllers_msgs.msg import * 
@@ -472,6 +472,15 @@ if __name__ == '__main__':
 
     #print c_right.modifyForJointLimits(jp1,jp2,0.1,0.4,0.1)
 
+
+    tmp= [0.3562, -0.7812, -0.0245, 1.0, 0.0, 0.0, 0.0]
+    cart_pos = [tmp,
+                [0.3562, -0.5812, -0.0245, 1.0, 0.0, 0.0, 0.0]]
+
+    start_angles = tmp
+    grip_traj = [0.0, 0.0, 0.0, 0.0, 0.0]
+    resp = c_right.followCartTraj(cart_pos, grip_traj, 2.0, start_angles, rospy.Time.now(), True)
+
     
     cart_pos = [[0.0522, -0.6312, -0.0145, -0.4855, 0.5246, 0.5617, 0.4165], 
                 [0.032, -0.6312, -0.0145, -0.4855, 0.5246, 0.5617, 0.4165],  
@@ -487,8 +496,11 @@ if __name__ == '__main__':
     t_vec2 = [2.0, 4.0, 6.0, 8.0]
     
     start_angles = [0.2562, -0.8812, -0.0245, -0.4855, 0.5246, 0.5617, 0.4165]
-    resp = c_right.followCartTraj(cart_pos, t_vec, start_angles, rospy.Time.now())
-    resp = c_right.followCartTraj(cart_pos2, t_vec2, start_angles, rospy.Time.now())# + rospy.Duration(2.0))   
+    #resp = c_right.followCartTraj(cart_pos, t_vec, start_angles, rospy.Time.now())
+    #resp = c_right.followCartTraj(cart_pos2, t_vec2, start_angles, rospy.Time.now())# + rospy.Duration(2.0))   
+    grip_traj = [0.0, -1.0, -1.0, -1.0, -1.0]
+    #resp = c_right.followCartTraj(cart_pos, grip_traj, 2.0, start_angles, rospy.Time.now(), True)
+    #resp = c_right.followCartTraj(cart_pos2, gripXXX, 2.0, start_angles, rospy.Time.now(), True)
     
     #cart_pos = [[0.0522, 0.6312, -0.0145, -0.4855, 0.5246, 0.5617, 0.4165], [0,0,0,0,0,0,0], [0.2562, 0.8812, -0.0245, -0.4855, 0.5246, 0.5617, 0.4165]]
     #resp = c_left.followCartTraj(cart_pos, t_vec, start_angles, rospy.Time.now())   

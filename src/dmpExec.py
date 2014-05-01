@@ -41,7 +41,7 @@ import generalUtils
 import trajUtils
 import drawUtils
 import bag2mat
-import skillParse
+#import skillParse
 import recordInteraction
 import dmp.srv
 import dmp.msg

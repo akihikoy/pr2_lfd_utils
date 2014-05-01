@@ -1,0 +1,16 @@
+<launch>
+
+  <node type="joy_node" pkg="joy" name="joy_node" />
+
+  <include file="$(find pr2_lfd_utils)/launch/lfd_teleop_joystick2.launch"/>
+  <include file="$(find pr2_lfd_utils)/launch/manip.launch"/>
+  <include file="$(find dmp)/launch/dmp.launch"/>
+  <include file="$(find ar_track_alvar)/launch/pr2_bundle.launch"/>
+  <include file="$(find pr2_gripper_traj_action)/launch/pr2_gripper_traj_action.launch"/>
+  <include file="$(find pr2_lfd_utils)/launch/mannequin_controllers.launch"/>
+<!--   <include file="/etc/ros/openni_head.launch"/> -->
+
+<!--   <include file="$(find pr2_arm_navigation_kinematics)/launch/pr2_ik_larm_node.launch"/> -->
+<!--   <include file="$(find pr2_arm_navigation_kinematics)/launch/pr2_ik_rarm_node.launch"/> -->
+
+</launch>

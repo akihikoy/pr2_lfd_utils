@@ -47,12 +47,13 @@ if __name__ == '__main__':
     
     rospy.init_node('ProcessDemosNode')
 
-    desiredHz = 10.0
-    whicharm = 1
-    is_sim = 0
-    use_cart = 1
-    white_thresh = -1 #0.001
-    basename = './data/bagfiles/stapler2'
+    desiredHz = 10.0  # the rate at which to sample the bag file
+    whicharm = 1  # 0 for right arm, 1 for left arm
+    is_sim = 1  # was this data real or simulated
+    use_cart = 1  # True if we want cartesian end effector positions, False if we want join positions
+    white_thresh = -1 #0.001  # A cutoff point for getting rid of non-motion white noise in trajectories.  0.001 usually works, or -1 to turn it off
+    #basename = './data/bagfiles/stapler2'
+    basename = './data/bagfiles/test'  # Directory where bag files are located
     
     folders = glob.glob(basename + "/*/")
     print folders

@@ -46,10 +46,14 @@ import os
 import signal
 import time
 
+class JoyKind:
+  PS3 = 1 # Playstation 3 controller
+  RS = 2  # Radioshack controller
+  default = PS3
 
 class RecordInteraction():
     
-    def __init__(self, base_path, joint_thresh=0.001):
+    def __init__(self, base_path, joint_thresh=0.001, joy_kind=JoyKind.default):
         
         print 'Waiting for switch controller service...'
         rospy.wait_for_service('pr2_controller_manager/switch_controller')
@@ -79,7 +83,7 @@ class RecordInteraction():
         self.seg_num = 1
         #Use to prevent it thinking there are many rapid presses due to the checking loop
         self.start_hold = False
-
+        self.joy_kind = joy_kind
 
         rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.joystick_callback);
         
@@ -93,30 +97,59 @@ class RecordInteraction():
     
     def joystick_callback(self, msg):
 
-            
-        #Check for Start button to start recording
-        if(msg.buttons[3] == 1):
-            if self.start_hold == False:
-                self.start_hold = True
-                self.startInteraction()
-                self.startRecord()
+        if self.joy_kind == JoyKind.PS3:
+
+            #Check for Start button to start recording
+            if(msg.buttons[3] == 1):
+                if self.start_hold == False:
+                    self.start_hold = True
+                    self.startInteraction()
+                    self.startRecord()
+            else:
+                self.start_hold = False
+
+            #Check for Select button to stop recording
+            if(msg.buttons[0] == 1):
+                self.stopRecord()
+                self.stopInteraction()
+
+            #Check for left circle button to switch to left arm
+            if(msg.buttons[15] == 1):
+                self.switchToLeftArm()
+
+            #Check for right circle button to switch to right arm
+            if(msg.buttons[13] == 1):
+                self.switchToRightArm()
+
+        elif self.joy_kind == JoyKind.RS:
+
+            #Check for Start button to start recording
+            if(msg.axes[5] >= 0.9):
+                if self.start_hold == False:
+                    self.start_hold = True
+                    self.startInteraction()
+                    self.startRecord()
+            else:
+                self.start_hold = False
+
+            #Check for Select button to stop recording
+            if(msg.axes[5] <= -0.9):
+                self.stopRecord()
+                self.stopInteraction()
+
+            #Check for left circle button to switch to left arm
+            if(msg.axes[4] >= 0.9):
+                self.switchToLeftArm()
+
+            #Check for right circle button to switch to right arm
+            if(msg.axes[4] <= -0.9):
+                self.switchToRightArm()
+
         else:
-            self.start_hold = False
-            
-        #Check for Select button to stop recording
-        if(msg.buttons[0] == 1):
-            self.stopRecord()
-            self.stopInteraction()
-            
-        #Check for left circle button to switch to left arm
-        if(msg.buttons[15] == 1):
-            self.switchToLeftArm()
-            
-        #Check for right circle button to switch to right arm
-        if(msg.buttons[13] == 1):
-            self.switchToRightArm()
-                
-    
+
+            print "Invalid joystick kind"
+
+
     #Start interaction by stopping standard controllers and going into mannequin mode
     #Starts with left arm mannequin, right arm rigid
     def startInteraction(self):

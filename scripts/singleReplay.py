@@ -38,13 +38,13 @@ import rospy
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-import coordFrame 
+#import coordFrame 
 import generalUtils
 import trajUtils
 import moveUtils
 import drawUtils
 import arWorldModel
-import skillParse
+#import skillParse
 import sys
 import os
 import os.path
@@ -94,7 +94,7 @@ if __name__ == '__main__':
             sys.exit(0)
         
         #Construct file names
-        basename = 'data/bagfiles/'
+        basename = 'data/bagfiles/test/2014_5_1_14_3_59/'
         demofile = basename + 'demo' + str(skill_id) + '.bag'
         picklefile = basename + 'Pickle' + str(skill_id) + '.txt'
         matfile = basename + 'Mat' + str(skill_id) + '.txt'

@@ -10,6 +10,7 @@
 
   <!-- load perception -->
   <!-- this launch file was moved inside this package in order to change laser settings -->
+<!-- COMMENT OUT FOR SIMULATOR@2014-04-27
   <include file="$(find pr2_object_manipulation_launch)/launch/laser+stereo-perception.launch">
     <arg name="stereo" value="$(arg stereo)"/>
     <arg name="use_right_arm" value="$(arg use_right_arm)"/>
@@ -17,6 +18,7 @@
     <arg name="kinect_frame_prefix" value="$(arg kinect_frame_prefix)"/>
     <arg name="kinect_camera_name" value="$(arg kinect_camera_name)"/>
   </include>
+-->
 
   <!-- load planning -->
   <include file="$(find pr2_arm_navigation_planning)/launch/ompl_planning.launch">
