@@ -94,7 +94,7 @@ if __name__ == '__main__':
             sys.exit(0)
         
         #Construct file names
-        basename = 'data/bagfiles/test/2014_5_1_14_3_59/'
+        basename = 'data/bagfiles/test2/a/'
         demofile = basename + 'demo' + str(skill_id) + '.bag'
         picklefile = basename + 'Pickle' + str(skill_id) + '.txt'
         matfile = basename + 'Mat' + str(skill_id) + '.txt'

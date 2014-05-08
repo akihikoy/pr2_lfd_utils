@@ -137,10 +137,11 @@ class ArmMoveUtils:
         
     ## @brief Move the joints to specified joint angles
     ## @param angles The set of angles to move to
-    def moveToJointAngle(self, angles):
+    ## @param deuration The duration of the movement
+    def moveToJointAngle(self, angles, deuration=1.0):
         jp = JointTrajectoryPoint()
         jp.positions = angles
-        jp.time_from_start = rospy.Duration(1);
+        jp.time_from_start = rospy.Duration(deuration);
         self.goal.trajectory.points.append(jp)
         self.goal.trajectory.header.stamp = rospy.Time.now()
         self.traj_client.send_goal(self.goal)
@@ -237,7 +238,20 @@ class ArmMoveUtils:
     #Returns the gripper pose and pose_dot
     def getGripPoseInfo(self):
         return (self.grip_pos, self.grip_pos_dot)
-        
+
+
+    def getCurrentPosition(self):
+        self.pos_lock.acquire()
+        cp = copy.deepcopy(self.curr_pos)
+        self.pos_lock.release()
+        return cp
+
+
+    def getTrajState(self):
+        return self.traj_client.get_state()
+
+    def getCartTrajState(self):
+        return self.cart_exec.traj_client.get_state()
         
         
 #Singleton class that handles movement for the arms and head        

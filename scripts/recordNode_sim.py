@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     ri = recordInteraction.RecordInteraction("data/bagfiles/", 0.001, recordInteraction.JoyKind.RS)
 
-    #required_objects = []
+    required_objects = []
     #wm = arWorldModel.ARWorldModel()
     #wm.searchUntilAllFound(required_objects)
     rospy.spin()

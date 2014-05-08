@@ -40,6 +40,7 @@ import glob
 import os.path
 import subprocess
 import yaml
+from cmnUtils import *
 
 # Script to run bag2mat on all subfolders in a path to generate all the appropriate 
 # mat, pickle, and marker files so we can segment the demos and replay the task
@@ -48,12 +49,12 @@ if __name__ == '__main__':
     rospy.init_node('ProcessDemosNode')
 
     desiredHz = 10.0  # the rate at which to sample the bag file
-    whicharm = 1  # 0 for right arm, 1 for left arm
+    whicharm = 0  # Not used (just initialization; 0 for right arm, 1 for left arm)
     is_sim = 1  # was this data real or simulated
     use_cart = 1  # True if we want cartesian end effector positions, False if we want join positions
     white_thresh = -1 #0.001  # A cutoff point for getting rid of non-motion white noise in trajectories.  0.001 usually works, or -1 to turn it off
     #basename = './data/bagfiles/stapler2'
-    basename = './data/bagfiles/test'  # Directory where bag files are located
+    basename = './data/bagfiles/test2'  # Directory where bag files are located
     
     folders = glob.glob(basename + "/*/")
     print folders
@@ -74,7 +75,10 @@ if __name__ == '__main__':
             #Keep looping until next set of files does not exist
             if not(os.path.isfile(demofile)):
                 break
-            
+
+            print '--------------'
+            print 'Processing ', demofile, '...'
+
             #Figure out which arm the part is from
             left_num = 0
             right_num = 0
@@ -85,7 +89,17 @@ if __name__ == '__main__':
                 if topic['topic'] == '/r_arm_controller/state' or topic['topic'] == '/r_arm_controller_loose/state':
                     right_num += topic['messages']
             print "L/R:", left_num, right_num
-            if left_num > right_num:
+            #User needs to choose if it is difficult to decide automatically
+            #3 is a magic number
+            if abs(left_num-right_num)<3:
+                print "Choose left arm(y) or right arm(n)"
+                if ask_yes_no():
+                    whicharm = 1
+                    print "left arm"
+                else:
+                    whicharm = 0
+                    print "right arm"
+            elif left_num > right_num:
                 whicharm = 1
             else:
                 whicharm = 0

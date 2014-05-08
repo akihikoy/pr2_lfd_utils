@@ -49,6 +49,7 @@ import generalUtils
 import trajUtils
 import subprocess
 import yaml
+from cmnUtils import *
 
 
 class Bag2Mat:
@@ -99,6 +100,7 @@ class Bag2Mat:
 
     def getMatrixRowJoint(self, msgs):
         r = list(msgs[self.pos_topic_name].actual.positions)
+        rospy.logwarn("FIXME: append msgs[self.gripper_topic_name] values like getMatrixRowCart")
         return r
     
     
@@ -139,7 +141,18 @@ class Bag2Mat:
             if topic['topic'] == '/l_arm_controller_loose/state' or topic['topic'] == '/r_arm_controller_loose/state':
                 mannequin_num += topic['messages']
         
-        if controller_num > mannequin_num:
+        print "ctrl/mann:", controller_num, mannequin_num
+        #User needs to choose if it is difficult to decide automatically  
+        #3 is a magic number
+        if abs(controller_num-mannequin_num)<3:
+            print "Choose controller file(y) or mannequin file(n)"
+            if ask_yes_no():
+                self.pos_topic_name = self.cont_pos_topic_name
+                print "controller file"
+            else:
+                self.pos_topic_name = self.mann_pos_topic_name
+                print "mannequin file"
+        elif controller_num > mannequin_num:
             self.pos_topic_name = self.cont_pos_topic_name
             print "controller file"
         else:
@@ -162,7 +175,7 @@ class Bag2Mat:
         
         #First, sample the messages every dt seconds and build up info
         for topic, msg, t in bag.read_messages(topics=topicList):
-            #Let messages come in for the first 0.2 seconds to make sure all topics have a valid message 
+            #Let messages come in for the first 0.2 seconds to make sure all topics have a valid message
             if(startupWait == 1):
                 if(first == 1):
                     first = 0
@@ -174,6 +187,9 @@ class Bag2Mat:
             #After that, record the current state of all topics each time dt seconds pass
             else:
                 currTopicVals[topic] = msg
+                #Skip if currTopicVals does not contain valid messages
+                if currTopicVals[self.pos_topic_name]==-1 or currTopicVals[self.gripper_topic_name]==-1:
+                    continue
                 if(t.to_sec()-lastTime > dt):
                     lastTime = t.to_sec()
                     if(use_cart):
@@ -185,7 +201,12 @@ class Bag2Mat:
         
         print len(X), 'samples collected'            
         bag.close()
-        
+
+        #Do nothing if no samples are collected
+        if len(X)==0:
+            rospy.logwarn("Exit without writing files")
+            return
+
         #Then write the info to files
         try:
             print 'Writing files', pickleFile, ',', matFile, '...'

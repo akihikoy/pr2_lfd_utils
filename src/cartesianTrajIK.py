@@ -97,6 +97,11 @@ class CartesianTrajExecIK():
         #Keep track if there is a previous traj we were following
         self.is_first_traj = True
         
+
+    # Enforce to use the specified start_angles
+    def resetIK(self):
+        self.is_first_traj = True
+
     
     
     #Send an IK request to the appropriate IK service  
@@ -310,6 +315,7 @@ class CartesianTrajExecIK():
                 seed_angles = angles
                 
             else:
+                self.last_error_code = resp.error_code.val
                 print "IK error", resp.error_code.val, "on point", i
             
             #Always increment t, even for IK misses
@@ -377,7 +383,8 @@ class CartesianTrajExecIK():
             else:
                 seg_start_joints = start_angles
                 seg_start_grip = grip_traj[0]
-                
+
+        self.last_error_code = 1
 
         #Convert to a joint trajectory and then interpolate between IK misses
         #After fillInIKMissGaps, the resulting traj should be the same length as the one input to followCartTraj
@@ -440,7 +447,7 @@ class CartesianTrajExecIK():
         self.traj_goal.trajectory.points = list(new_arm_traj)
         self.traj_goal.trajectory.header.stamp = splice_time #+ rospy.Duration(dt)    #Add in dt so that point we were heading towards isn't deleted, since it isn't in new plan
         self.traj_client.send_goal(self.traj_goal)
-        
+
         self.grip_traj_goal.gripper_traj = list(new_grip_traj)
         self.grip_traj_goal.dt = dt
         self.gripper_traj_client.send_goal(self.grip_traj_goal)
@@ -473,13 +480,14 @@ if __name__ == '__main__':
     #print c_right.modifyForJointLimits(jp1,jp2,0.1,0.4,0.1)
 
 
-    tmp= [0.3562, -0.7812, -0.0245, 1.0, 0.0, 0.0, 0.0]
+    tmp= [0.061, -0.629, -0.0244, 1.0, 0.0, 0.0, 0.0]
     cart_pos = [tmp,
-                [0.3562, -0.5812, -0.0245, 1.0, 0.0, 0.0, 0.0]]
+                [0.161, -0.629, -0.0244, 1.0, 0.0, 0.0, 0.0],
+                [0.161, -0.609, -0.0244, 1.0, 0.0, 0.0, 0.0]]
 
-    start_angles = tmp
-    grip_traj = [0.0, 0.0, 0.0, 0.0, 0.0]
-    resp = c_right.followCartTraj(cart_pos, grip_traj, 2.0, start_angles, rospy.Time.now(), True)
+    start_angles = [-2.1, 0.02, -1.6, -2.1, -1.6, -1.7, 1.4]
+    grip_traj = [0.0, 100.0, -100.0]
+    resp = c_right.followCartTraj(cart_pos, grip_traj, 1.0, start_angles, rospy.Time.now(), True)
 
     
     cart_pos = [[0.0522, -0.6312, -0.0145, -0.4855, 0.5246, 0.5617, 0.4165], 

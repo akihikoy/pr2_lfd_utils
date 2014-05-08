@@ -1,8 +1,11 @@
 <launch>
 
-  <node type="joy_node" pkg="joy" name="joy_node" />
+<!--   <node type="joy_node" pkg="joy" name="joy_node" /> -->
+  <include file="$(find pr2_lfd_utils)/launch/switch_joy2.launch"/>
 
   <include file="$(find pr2_lfd_utils)/launch/lfd_teleop_joystick2.launch"/>
+<!--  TODO: ADD NODE: scripts/teleopCart.py _joy_kind:=RS  -->
+
   <include file="$(find pr2_lfd_utils)/launch/manip.launch"/>
   <include file="$(find dmp)/launch/dmp.launch"/>
   <include file="$(find ar_track_alvar)/launch/pr2_bundle.launch"/>

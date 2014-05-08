@@ -45,11 +45,8 @@ import subprocess
 import os
 import signal
 import time
+from joyKind import *
 
-class JoyKind:
-  PS3 = 1 # Playstation 3 controller
-  RS = 2  # Radioshack controller
-  default = PS3
 
 class RecordInteraction():
     
@@ -85,9 +82,17 @@ class RecordInteraction():
         self.start_hold = False
         self.joy_kind = joy_kind
 
+        #List of topics to be stored into a bag file:
+        self.topic_list = ["/ar_world_model",
+            "/l_arm_controller/state",
+            "/r_arm_controller/state",
+            "/l_arm_controller_loose/state",
+            "/r_arm_controller_loose/state",
+            "/l_gripper_controller/state",
+            "/r_gripper_controller/state"]
+
         rospy.Subscriber("joy", sensor_msgs.msg.Joy, self.joystick_callback);
-        
-        
+
 
 
     def __del__(self):
@@ -121,6 +126,12 @@ class RecordInteraction():
             if(msg.buttons[13] == 1):
                 self.switchToRightArm()
 
+            if(msg.buttons[1] == 1):
+                if self.interaction:
+                  self.stopInteraction()
+                else:
+                  self.startInteraction()
+
         elif self.joy_kind == JoyKind.RS:
 
             #Check for Start button to start recording
@@ -145,24 +156,31 @@ class RecordInteraction():
             if(msg.axes[4] <= -0.9):
                 self.switchToRightArm()
 
+            if(msg.buttons[10] == 1):
+                if self.interaction:
+                  self.stopInteraction()
+                else:
+                  self.startInteraction()
+
         else:
 
-            print "Invalid joystick kind"
+            print "Invalid joystick kind: "+str(self.joy_kind)
 
 
     #Start interaction by stopping standard controllers and going into mannequin mode
     #Starts with left arm mannequin, right arm rigid
     def startInteraction(self):
         if not self.interaction:
-            self.switch_req.stop_controllers = [self.standard_controllers[1]]
-            self.switch_req.start_controllers = [self.mannequin_controllers[1]]
+            print "Start interaction of arm-"+str(self.whicharm_mann)
+            self.switch_req.stop_controllers = [self.standard_controllers[self.whicharm_mann]]
+            self.switch_req.start_controllers = [self.mannequin_controllers[self.whicharm_mann]]
             resp = self.switch_control(self.switch_req)
-            self.whicharm_mann = 1
             self.interaction = True
         
         
     def stopInteraction(self):
         if self.interaction:
+            print "Stop interaction of arm-"+str(self.whicharm_mann)
             self.switch_req.stop_controllers = [self.mannequin_controllers[self.whicharm_mann]]
             self.switch_req.start_controllers = [self.standard_controllers[self.whicharm_mann]]
             resp = self.switch_control(self.switch_req)
@@ -202,7 +220,7 @@ class RecordInteraction():
             print "Beginning to record."
             self.recording = True
             
-            topics = "/ar_world_model /l_arm_controller_loose/state /r_arm_controller_loose/state /l_gripper_controller/state /r_gripper_controller/state"
+            topics = ' '.join(self.topic_list)
             filename = self.file_path + "/part" + str(self.seg_num) + ".bag " 
             command = "rosbag record -O " + filename + topics
             self.bag_process = subprocess.Popen(command, shell=True, preexec_fn=os.setsid)
@@ -227,7 +245,7 @@ class RecordInteraction():
         os.killpg(pid, signal.SIGINT)
         
         #Open a new file with incremented segment number
-        topics = "/ar_world_model /l_arm_controller_loose/state /r_arm_controller_loose/state /l_gripper_controller/state /r_gripper_controller/state"
+        topics = ' '.join(self.topic_list)
         self.seg_num += 1
         filename = self.file_path + "/part" + str(self.seg_num) + ".bag " 
         print "Switching to record file", filename

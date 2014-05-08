@@ -56,11 +56,12 @@ class DMPExec:
         self.move_utils = moveUtils.MoveUtils()
         self.draw_utils = drawUtils.DrawUtils()
         self.wm = arWorldModel.ARWorldModel()
-        
+        self.use_head_tracking = False
     
     #Cancel head following when this object is deleted
     def __del__(self):
-        self.move_utils.commandARHeadTrack(-1)
+        if self.use_head_tracking:
+            self.move_utils.commandARHeadTrack(-1)
 
 
     def makeLFDRequest(self, dims, traj, dt, K_gain, D_gain, num_bases):
@@ -160,6 +161,7 @@ class DMPExec:
         #Active the desired DMP
         self.makeSetActiveRequest(dmp_list)  
 
+        if use_head_tracking:  self.use_head_tracking = True
         if use_head_tracking:
             #Use the head to track the tag we want to control, if any
             if control_frame >= 0:
