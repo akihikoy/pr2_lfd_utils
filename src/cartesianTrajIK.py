@@ -100,6 +100,8 @@ class CartesianTrajExecIK():
 
     # Enforce to use the specified start_angles
     def resetIK(self):
+        self.traj_client.cancel_all_goals()
+        self.gripper_traj_client.cancel_all_goals()
         self.is_first_traj = True
 
     

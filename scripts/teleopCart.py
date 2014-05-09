@@ -12,6 +12,7 @@ from joyKind import *
 import kinematics_msgs.srv
 import pr2_controllers_msgs.msg
 import arm_navigation_msgs.srv
+import tf
 
 
 #There must be a planning scene or FK / IK crashes
@@ -40,10 +41,12 @@ class TeleopCart:
         #self.joy2_pub = rospy.Publisher("joy2", sensor_msgs.msg.Joy)
 
         self.init = True
+        self.reset = True
         self.curr_x=[[0.0]*7, [0.0]*7]
         self.whicharm = 0
 
         self.linear_speed = [0.01,0.01,0.01]
+        self.angular_speed = [0.05,0.05,0.05]
         self.time_step = 0.05
 
         self.deadman = False
@@ -52,7 +55,8 @@ class TeleopCart:
 
     def joystickCallback(self, msg):
 
-        self.dx_vec = [0.0, 0.0, 0.0]
+        self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
+        self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
 
         if self.joy_kind == JoyKind.PS3:
 
@@ -63,14 +67,23 @@ class TeleopCart:
 
         elif self.joy_kind == JoyKind.RS:
 
-            if msg.buttons[7] == 0:  self.deadman = False
-            else:                    self.deadman = True
+            if msg.buttons[7] == 0:
+                self.deadman = False
+            else:
+                if not self.deadman:
+                    self.reset = True
+                self.deadman = True
 
             if not self.deadman:  return
 
-            self.dx_vec[0] += msg.axes[1]*self.linear_speed[0]
-            self.dx_vec[1] += msg.axes[0]*self.linear_speed[1]
-            self.dx_vec[2] += msg.axes[3]*self.linear_speed[2]
+            if msg.buttons[5] == 0:
+                self.dx_vec[0] += msg.axes[1]*self.linear_speed[0]
+                self.dx_vec[1] += msg.axes[0]*self.linear_speed[1]
+                self.dx_vec[2] += msg.axes[3]*self.linear_speed[2]
+            else:
+                self.w_vec[0] += -msg.axes[0]*self.angular_speed[0]
+                self.w_vec[1] += msg.axes[1]*self.angular_speed[1]
+                self.w_vec[2] += msg.axes[2]*self.angular_speed[2]
 
             if(msg.axes[4] >= 0.9):
                 self.whicharm = 1
@@ -87,6 +100,7 @@ class TeleopCart:
             if msg.buttons[0] == 1:
                 self.deadman = False
                 self.init = True
+                self.reset = True
                 #time.sleep(0.1)
                 self.mu.arm[0].traj_client.wait_for_result()
                 self.mu.arm[0].cart_exec.traj_client.wait_for_result()
@@ -108,7 +122,7 @@ class TeleopCart:
 
         #dx_vec= [0.0]*7
         #dx_vec[0]= 0.02
-        print self.dx_vec
+        print self.dx_vec, ' ', self.w_vec
         #self.controlCart(dx_vec)
 
 
@@ -116,10 +130,16 @@ class TeleopCart:
 
         if not self.deadman: return
 
+        if self.reset:
+            self.mu.arm[0].cart_exec.resetIK()
+            self.mu.arm[1].cart_exec.resetIK()
+            self.reset = False
+
         i = self.whicharm
 
         # If the previous goal is active, ignore the command
         if self.mu.arm[i].getCartTrajState() == al.GoalStatus.ACTIVE:
+            #print "DEBUG"
             return
 
         if self.init:
@@ -145,6 +165,13 @@ class TeleopCart:
 
         dx_vec_e = self.dx_vec+[0.0]*4
         cart_pos = [(np.array(self.curr_x[i])+np.array(dx_vec_e)).tolist()]
+        w_vec_norm = la.norm(self.w_vec)
+        if w_vec_norm > 1.0e-4:
+            rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+        else:
+            rot = [0.,0.,0.,1.]
+        cart_pos[0][3:7] = tf.transformations.quaternion_multiply(rot,cart_pos[0][3:7])
+
         self.curr_x[i] = cart_pos[0]
         print "Target= "+str(cart_pos)
         grip_traj = [0.0]
@@ -156,6 +183,8 @@ class TeleopCart:
         print "Error code= "+str(self.mu.arm[i].cart_exec.last_error_code)
         if self.mu.arm[i].cart_exec.last_error_code != 1:
             self.init = True
+            self.reset = True
+            #self.mu.arm[i].cart_exec.traj_client.wait_for_result()
         #time.sleep(dt)
 
         q[i] = self.mu.arm[i].getCurrentPosition()  # current right-arm joint angles
@@ -167,7 +196,7 @@ class TeleopCart:
 if __name__ == '__main__':
     rospy.init_node('teleopCartNode')
     tc = TeleopCart(strToJoyKind(rospy.get_param('~joy_kind', 'default')))
-    r = rospy.Rate(200)
+    r = rospy.Rate(150)
     while not rospy.is_shutdown():
       tc.controlCart()
       r.sleep()
