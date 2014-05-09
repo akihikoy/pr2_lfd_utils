@@ -2,8 +2,10 @@
 
   <env name='ROBOT' value='sim' />
 
-  <include file="$(find gazebo_worlds)/launch/empty_world.launch"/>
-  <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
+  <!--<include file="$(find gazebo_worlds)/launch/empty_world.launch"/>-->
+  <!--<include file="$(find pr2_gazebo)/launch/pr2.launch"/>-->
+  <include file="$(find pr2_gazebo)/launch/pr2_empty_world.launch"/>
+
   <include file="$(find pr2_3dnav)/both_arms_navigation.launch"/>
 
 </launch>
