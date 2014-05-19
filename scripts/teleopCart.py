@@ -53,9 +53,12 @@ class TeleopCart:
         #self.linear_speed = [0.005,0.005,0.005]
         self.angular_speed = [0.05,0.05,0.05]
         self.time_step = 0.05
+        self.gripper_max_effort = [12.0,15.0]
 
         self.deadman = False
-        self.dx_vec = [0.0, 0.0, 0.0]
+        self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
+        self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
+        self.pose_request = 0  # move to a predefined pose
 
         #Recorder setup:
         self.base_path = base_path+'/'
@@ -85,7 +88,8 @@ class TeleopCart:
 
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
         self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
-
+        self.pose_request = 0  # move to a predefined pose
+        
         if self.joy_kind == JoyKind.PS3:
 
             if msg.buttons[8] == 0:
@@ -107,21 +111,22 @@ class TeleopCart:
                 self.w_vec[1] += msg.axes[1]*self.angular_speed[1]
                 self.w_vec[2] += msg.axes[2]*self.angular_speed[2]
 
-            if msg.buttons[5] == 1:
+            if msg.buttons[7] == 1:
                 self.whicharm = 1
                 print "Arm has switched to left"
-            if msg.buttons[7] == 1:
+            if msg.buttons[5] == 1:
                 self.whicharm = 0
                 print "Arm has switched to right"
 
             if msg.buttons[13] == 1:
-                self.mu.arm[self.whicharm].makeGripperRequest(0.08,False);
+                self.mu.arm[self.whicharm].commandGripper(0.08,self.gripper_max_effort[self.whicharm],False);
             if msg.buttons[15] == 1:
-                self.mu.arm[self.whicharm].makeGripperRequest(0.0,False);
+                self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
 
             #Move arms to side
             if msg.buttons[12] == 1:
-                self.moveArmsToSide()
+                self.pose_request = 1
+                #self.moveArmsToSide()
 
             if msg.buttons[3] == 1:
                 self.startRecord()
@@ -163,7 +168,8 @@ class TeleopCart:
 
             #Move arms to side
             if msg.buttons[0] == 1:
-                self.moveArmsToSide()
+                self.pose_request = 1
+                #self.moveArmsToSide()
 
             if msg.buttons[8] == 1:
                 self.startRecord()
@@ -183,6 +189,14 @@ class TeleopCart:
 
 
     def controlCart(self):
+
+        if self.pose_request > 0:
+            if self.pose_request == 1:
+                self.moveArmsToSide()
+
+            self.pose_request = 0
+            self.init = True
+            self.reset = True
 
         if not self.deadman: return
 
@@ -255,7 +269,7 @@ class TeleopCart:
         self.curr_x[i] = cart_pos[0]
 
 
-    def moveArmsToSide():
+    def moveArmsToSide(self):
         self.deadman = False
         self.init = True
         self.reset = True
