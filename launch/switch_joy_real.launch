@@ -1,0 +1,9 @@
+<launch>
+
+  <include file="$(find pr2_lfd_utils)/launch/restart_joy.launch"/>
+
+  <node type="switchJoy.py" pkg="pr2_lfd_utils" name="switch_joy_node" output="screen">
+    <param name="joy_kind" value="PS3" />
+  </node>
+
+</launch>

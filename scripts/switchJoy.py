@@ -24,7 +24,7 @@ class SwitchJoy:
 
         if self.joy_kind == JoyKind.PS3:
 
-            if(msg.buttons[9] == 0):  controller = 1
+            if(msg.buttons[8] == 0):  controller = 1
             else:                     controller = 2
 
         elif self.joy_kind == JoyKind.RS:

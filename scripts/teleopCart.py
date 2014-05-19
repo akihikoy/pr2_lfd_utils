@@ -88,10 +88,45 @@ class TeleopCart:
 
         if self.joy_kind == JoyKind.PS3:
 
-            rospy.logerr("FIXME: implement TeleopCart:: for JoyKind.PS3!!")
-            #dx_vec[0] += msg.axes[0]*0.1
-            #dx_vec[1] += msg.axes[0]*0.1
-            #dx_vec[2] += msg.axes[0]*0.1
+            if msg.buttons[8] == 0:
+                self.deadman = False
+            else:
+                if not self.deadman:
+                    self.init = True
+                    self.reset = True
+                self.deadman = True
+
+            if not self.deadman:  return
+
+            if msg.buttons[11] == 0:
+                self.dx_vec[0] += msg.axes[1]*self.linear_speed[0]
+                self.dx_vec[1] += msg.axes[0]*self.linear_speed[1]
+                self.dx_vec[2] += msg.axes[3]*self.linear_speed[2]
+            else:
+                self.w_vec[0] += -msg.axes[0]*self.angular_speed[0]
+                self.w_vec[1] += msg.axes[1]*self.angular_speed[1]
+                self.w_vec[2] += msg.axes[2]*self.angular_speed[2]
+
+            if msg.buttons[5] == 1:
+                self.whicharm = 1
+                print "Arm has switched to left"
+            if msg.buttons[7] == 1:
+                self.whicharm = 0
+                print "Arm has switched to right"
+
+            if msg.buttons[13] == 1:
+                self.mu.arm[self.whicharm].makeGripperRequest(0.08,False);
+            if msg.buttons[15] == 1:
+                self.mu.arm[self.whicharm].makeGripperRequest(0.0,False);
+
+            #Move arms to side
+            if msg.buttons[12] == 1:
+                self.moveArmsToSide()
+
+            if msg.buttons[3] == 1:
+                self.startRecord()
+            if msg.buttons[0] == 1:
+                self.stopRecord()
 
         elif self.joy_kind == JoyKind.RS:
 
@@ -128,36 +163,7 @@ class TeleopCart:
 
             #Move arms to side
             if msg.buttons[0] == 1:
-                self.deadman = False
-                self.init = True
-                self.reset = True
-                #time.sleep(0.1)
-                self.mu.arm[0].traj_client.wait_for_result()
-                self.mu.arm[0].cart_exec.traj_client.wait_for_result()
-                self.mu.arm[1].traj_client.wait_for_result()
-                self.mu.arm[1].cart_exec.traj_client.wait_for_result()
-                target = [[],[]]
-                target[1] = [2.115, -0.020, 1.640, -2.070, 1.640, -1.680, 1.398]
-                target[0] = [-2.115, 0.020, -1.640, -2.070, -1.640, -1.680, 1.398]
-                threshold = 0.01
-                print "Moving to home position"
-                print "Left arm..."
-                self.mu.arm[1].commandGripper(0.08, -1)
-                q = np.array(self.mu.arm[1].getCurrentPosition())
-                diff = la.norm(np.array(target[1])-q)
-                if diff > threshold:
-                    self.mu.arm[1].moveToJointAngle(target[1], 4.0)
-                else:
-                    print "Left arm is already at the goal ({diff})".format(diff=diff)
-                print "Right arm..."
-                self.mu.arm[0].commandGripper(0.08, -1)
-                q = np.array(self.mu.arm[0].getCurrentPosition())
-                diff = la.norm(np.array(target[0])-q)
-                if diff > threshold:
-                    self.mu.arm[0].moveToJointAngle(target[0], 4.0)
-                else:
-                    print "Right arm is already at the goal ({diff})".format(diff=diff)
-                print "Done"
+                self.moveArmsToSide()
 
             if msg.buttons[8] == 1:
                 self.startRecord()
@@ -247,6 +253,39 @@ class TeleopCart:
         #self.curr_x[i] = p[i]
         #print "Result= "+str(p[i])
         self.curr_x[i] = cart_pos[0]
+
+
+    def moveArmsToSide():
+        self.deadman = False
+        self.init = True
+        self.reset = True
+        #time.sleep(0.1)
+        self.mu.arm[0].traj_client.wait_for_result()
+        self.mu.arm[0].cart_exec.traj_client.wait_for_result()
+        self.mu.arm[1].traj_client.wait_for_result()
+        self.mu.arm[1].cart_exec.traj_client.wait_for_result()
+        target = [[],[]]
+        target[1] = [2.115, -0.020, 1.640, -2.070, 1.640, -1.680, 1.398]
+        target[0] = [-2.115, 0.020, -1.640, -2.070, -1.640, -1.680, 1.398]
+        threshold = 0.01
+        print "Moving to home position"
+        print "Left arm..."
+        self.mu.arm[1].commandGripper(0.08, -1)
+        q = np.array(self.mu.arm[1].getCurrentPosition())
+        diff = la.norm(np.array(target[1])-q)
+        if diff > threshold:
+            self.mu.arm[1].moveToJointAngle(target[1], 4.0)
+        else:
+            print "Left arm is already at the goal ({diff})".format(diff=diff)
+        print "Right arm..."
+        self.mu.arm[0].commandGripper(0.08, -1)
+        q = np.array(self.mu.arm[0].getCurrentPosition())
+        diff = la.norm(np.array(target[0])-q)
+        if diff > threshold:
+            self.mu.arm[0].moveToJointAngle(target[0], 4.0)
+        else:
+            print "Right arm is already at the goal ({diff})".format(diff=diff)
+        print "Done"
 
 
     def startRecord(self):
