@@ -38,6 +38,7 @@ import rospy
 import bag2mat
 import glob
 import os.path
+import sys
 import subprocess
 import yaml
 from cmnUtils import *
@@ -45,18 +46,65 @@ from cmnUtils import *
 # Script to run bag2mat on all subfolders in a path to generate all the appropriate 
 # mat, pickle, and marker files so we can segment the demos and replay the task
 if __name__ == '__main__': 
-    
-    rospy.init_node('ProcessDemosNode')
+
+    usage='''Process demo bag file
+    USAGE: {exe} [OPTION] DIR_NAME
+      DIR_NAME:    directory where bag files are located
+      OPTION:
+        -dHz XXX   the rate at which to sample the bag file ({desiredHz})
+        -sim       specify that this data was simulated (OFF)
+        -real      specify that this data was real (ON)
+        -cart      using cartesian end effector positions (ON)
+        -joint     using join positions (OFF)
+        -wth XXX   white threshold; a cutoff point for getting rid of
+                   non-motion white noise in trajectories.
+                   0.001 usually works, or -1 to turn it off ({white_thresh})
+        -help      show help
+    EXAMPLE:
+      {exe} -sim data/bagfiles/test2/b'''
 
     desiredHz = 10.0  # the rate at which to sample the bag file
     whicharm = 0  # Not used (just initialization; 0 for right arm, 1 for left arm)
-    is_sim = 1  # was this data real or simulated
+    is_sim = 0  # was this data real or simulated
     use_cart = 1  # True if we want cartesian end effector positions, False if we want join positions
     white_thresh = -1 #0.001  # A cutoff point for getting rid of non-motion white noise in trajectories.  0.001 usually works, or -1 to turn it off
     #basename = './data/bagfiles/stapler2'
-    basename = './data/bagfiles/test2'  # Directory where bag files are located
-    
-    folders = glob.glob(basename + "/*/")
+    basename = ''  # Directory where bag files are located
+
+    usage = usage.format(exe=sys.argv[0],desiredHz=desiredHz,white_thresh=white_thresh)
+    #Parse option
+    it= iter(sys.argv)
+    it.next() # skip exec name
+    while True:
+        try:
+            a= it.next()
+            if a=='-help' or a=='--help': print usage; sys.exit(0)
+            elif a=='-dHz': desiredHz = float(it.next())
+            elif a=='-sim': is_sim = 1
+            elif a=='-real': is_sim = 0
+            elif a=='-cart': use_cart = 1
+            elif a=='-joint': use_cart = 0
+            elif a=='-wth': white_thresh = float(it.next())
+            else: basename = a
+        except StopIteration:
+            break
+    print '-------------------------'
+    print 'desiredHz = ',desiredHz
+    print 'is_sim = ',is_sim
+    print 'use_cart = ',use_cart
+    print 'white_thresh = ',white_thresh
+    print 'basename = ',basename
+    print '-------------------------'
+
+    if basename=='': print usage; sys.exit(0)
+
+    print 'Do you continue?'
+    if not ask_yes_no():  sys.exit(0)
+
+    rospy.init_node('ProcessDemosNode')
+
+    #folders = glob.glob(basename + "/*/")
+    folders = glob.glob(basename + "/")
     print folders
         
     #Go through each directory, each of which corresponds to one full task demo

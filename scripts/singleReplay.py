@@ -64,13 +64,98 @@ def isConverged(curr_pos, goal_pos, goal_thresh):
 
       
 if __name__ == '__main__':
+
+    RIGHT_ARM = 0
+    LEFT_ARM = 1
+
+    usage='''Replay a recorded trajectory
+    USAGE: {exe} [OPTION] DIR_NAME SKILL_ID
+      DIR_NAME:     directory where a demo file is located
+      SKILL_ID:     index of the demo file ({skill_id})
+      OPTION:
+        -r          right arm (OFF)
+        -l          left arm (ON)
+        -cf XXX     control frame; -1 : wrist_roll_joint, otherwise use
+                    ID of marker ({control_frame})
+        -gf XXX     goal frame; -1 : torso_lift_link, otherwise use ID
+                    of marker ({goal_frame})
+        -plan       plan only (OFF)
+        -goal X Y Z specify a new goal ({new_goal})
+        -help       show help
+    EXAMPLE:
+      {exe} data/bagfiles/test2/a
+      {exe} -r data/bagfiles/test2/a 1 -goal 0.57 -0.206 -0.0135'''
+
+    basename = ''
+    skill_id = 1
+    whicharm = LEFT_ARM
+    control_frame = -1
+    goal_frame = -1
+    plan_only = 0
+    new_goal = []
+
+    usage = usage.format(exe=sys.argv[0], skill_id=skill_id, control_frame=control_frame, goal_frame=goal_frame, new_goal=new_goal)
+    #Parse option
+    notag_opt=0
+    it= iter(sys.argv)
+    it.next() # skip exec name
+    while True:
+        try:
+            a= it.next()
+            if a=='-help' or a=='--help': print usage; sys.exit(0)
+            elif a=='-r': whicharm = RIGHT_ARM
+            elif a=='-l': whicharm = LEFT_ARM
+            elif a=='-cf': control_frame = int(it.next())
+            elif a=='-gf': goal_frame = int(it.next())
+            elif a=='-plan': plan_only = 1
+            elif a=='-goal': new_goal = [float(it.next()), float(it.next()), float(it.next())]
+            else:
+                if notag_opt==0: basename = a+'/'
+                elif notag_opt==1: skill_id = int(a)
+                else: print usage; sys.exit(0)
+                notag_opt+=1
+        except StopIteration:
+            break
+    print '-------------------------'
+    print 'basename = ',basename
+    print 'skill_id = ',skill_id
+    print 'whicharm = ',whicharm
+    print 'control_frame = ',control_frame
+    print 'goal_frame = ',goal_frame
+    print 'plan_only = ',plan_only
+    print 'new_goal = ',new_goal
+    print '-------------------------'
+
+    if basename=='': print usage; sys.exit(0)
+
+    print 'Do you continue?'
+    if not ask_yes_no():  sys.exit(0)
+
+    ##Parameters that select a skill to execute and the marker frame it is in (-1 for torso)
+    #if (len(sys.argv) >= 6):
+        #whicharm = int(sys.argv[1])
+        #skill_id = int(sys.argv[2])
+        #control_frame = int(sys.argv[3])
+        #goal_frame = int(sys.argv[4])
+        #plan_only = int(sys.argv[5])
+        #if len(sys.argv) >= 7: basename = sys.argv[6]+'/'
+        #if len(sys.argv) >= 10:
+            #new_goal = [0]*3
+            #new_goal[0] = float(sys.argv[7])
+            #new_goal[1] = float(sys.argv[8])
+            #new_goal[2] = float(sys.argv[9])
+    #else:
+        #print "\nAborting! Wrong number of command line args"
+        #print "Usage: python singleReplay <whicharm> <skill_id> <control_frame> <goal_frame> <plan_only> (<base_path>)"
+        #print "0 for right arm, 1 for left arm"
+        #print "-1 for control frame: wrist_roll_joint ; -1 for goal_frame: torso_lift_link ; otherwise use ID of marker\n"
+        #sys.exit(0)
+
+
     try:
     
         rospy.init_node('SingleReplayNode')
         #rospy.on_shutdown(shutdown_cb)
-
-        RIGHT_ARM = 0
-        LEFT_ARM = 1
    
         #Setup utilities and world model
         gen_utils = generalUtils.GeneralUtils()
@@ -79,29 +164,12 @@ if __name__ == '__main__':
         draw_utils = drawUtils.DrawUtils()
         wm = arWorldModel.ARWorldModel()
 
-        #Parameters that select a skill to execute and the marker frame it is in (-1 for torso)
-        if (len(sys.argv) == 6):
-            whicharm = int(sys.argv[1])
-            skill_id = int(sys.argv[2])
-            control_frame = int(sys.argv[3])
-            goal_frame = int(sys.argv[4])
-            plan_only = int(sys.argv[5]) 
-        else:
-            print "\nAborting! Wrong number of command line args"
-            print "Usage: python singleReplay <whicharm> <skill_id> <control_frame> <goal_frame> <plan_only>"
-            print "0 for right arm, 1 for left arm"
-            print "-1 for control frame: wrist_roll_joint ; -1 for goal_frame: torso_lift_link ; otherwise use ID of marker\n"
-            sys.exit(0)
-        
         #Construct file names
-        basename = 'data/bagfiles/test2/a/'
         demofile = basename + 'demo' + str(skill_id) + '.bag'
         picklefile = basename + 'Pickle' + str(skill_id) + '.txt'
         matfile = basename + 'Mat' + str(skill_id) + '.txt'
         markerfile = basename + 'Marker' + str(skill_id) + '.txt'
-       
-       
-       
+
 
         #################### Load data and process trajectories ####################
         
@@ -120,7 +188,12 @@ if __name__ == '__main__':
         else:
             traj_data = arm_control_data
 
-
+        demo_start = traj_data[0]
+        demo_goal = traj_data[-1]
+        print "Demo goal: ", demo_goal
+        if len(new_goal) > 0:
+            demo_goal[0:len(new_goal)] = new_goal
+        print "Current goal: ", demo_goal
 
 
         #################### Learn DMP and prepare for replay ####################
@@ -131,9 +204,9 @@ if __name__ == '__main__':
         #no_exec = True
         
         if(goal_frame >= 0):
-            dmp_exec.executeDMP(whicharm, tau, dmp_list, traj_data[0], traj_data[-1], plan_only_no_exec=plan_only, goal_frame=gf, marker_goal=marker_goal_data[0])     
+            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf, marker_goal=marker_goal_data[0])
         else:
-            dmp_exec.executeDMP(whicharm, tau, dmp_list, traj_data[0], traj_data[-1], plan_only_no_exec=plan_only, goal_frame=gf)     
+            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf)     
 
      
       
