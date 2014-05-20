@@ -1,7 +1,7 @@
 <!-- Copied from /opt/ros/groovy/stacks/pr2_robot/pr2_bringup/pr2.launch -->
 <launch>
   <!--First, kill the original joy-->
-  <node pkg="pr2_lfd_util2" type="killJoy.py" name="kill_joy" />
+  <node pkg="pr2_lfd_utils" type="killJoy.py" name="kill_joy" />
 
   <!--Second, start a new instance of joy_node with a new topic name, joy_raw-->
   <param name="/use_sim_time" value="false"/>

@@ -54,6 +54,7 @@ class TeleopCart:
         self.angular_speed = [0.05,0.05,0.05]
         self.time_step = 0.05
         self.gripper_max_effort = [12.0,15.0]  # gripper's max effort when closing (right,left). -1: do not limit, 50: close gently
+        self.gripper_max_effort_string = [50.0,50.0]
 
         self.deadman = False
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
@@ -119,9 +120,15 @@ class TeleopCart:
                 print "Arm has switched to right"
 
             if msg.buttons[13] == 1:
-                self.mu.arm[self.whicharm].commandGripper(0.08,self.gripper_max_effort[self.whicharm],False);
+                if msg.buttons[11] == 0:
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort[self.whicharm],False);
+                else:
+	            self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
             if msg.buttons[15] == 1:
-                self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
+                if msg.buttons[11] == 0:
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
+                else:
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_string[self.whicharm],False);
 
             #Move arms to side
             if msg.buttons[12] == 1:
@@ -162,7 +169,7 @@ class TeleopCart:
                 print "Arm has switched to right"
 
             if(msg.axes[5] >= 0.9):
-                self.mu.arm[self.whicharm].makeGripperRequest(0.08,False);
+                self.mu.arm[self.whicharm].makeGripperRequest(0.09,False);
             elif(msg.axes[5] <= -0.9):
                 self.mu.arm[self.whicharm].makeGripperRequest(0.0,False);
 
@@ -247,7 +254,8 @@ class TeleopCart:
         cart_pos[0][3:7] = tf.transformations.quaternion_multiply(rot,cart_pos[0][3:7])
 
         print "Target= "+str(cart_pos)
-        grip_traj = [0.0]
+        #grip_traj = [0.0]
+        grip_traj = [self.mu.arm[i].getGripPoseInfo()[0]]  # keep the current position
         dt = self.time_step
         splice_time = rospy.Time.now()
         blocking = False
