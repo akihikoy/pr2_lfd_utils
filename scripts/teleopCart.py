@@ -53,7 +53,7 @@ class TeleopCart:
         #self.linear_speed = [0.005,0.005,0.005]
         self.angular_speed = [0.05,0.05,0.05]
         self.time_step = 0.05
-        self.gripper_max_effort = [12.0,15.0]
+        self.gripper_max_effort = [12.0,15.0]  # gripper's max effort when closing (right,left). -1: do not limit, 50: close gently
 
         self.deadman = False
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
