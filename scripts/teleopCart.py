@@ -142,7 +142,7 @@ class TeleopCart:
             if msg.buttons[12] == 1:
                 self.motion_request = MotionKind.ARMS_TO_SIDE
             if msg.buttons[14] == 1:
-                if msg.buttons[5] == 0:
+                if msg.buttons[11] == 0:
                     self.motion_request = MotionKind.SHAKE_GRIPPER
                 else:
                     self.motion_request = MotionKind.SHAKE_GRIPPER_FAST
@@ -223,9 +223,9 @@ class TeleopCart:
             if self.motion_request == MotionKind.ARMS_TO_SIDE:
                 self.moveArmsToSide()
             elif self.motion_request == MotionKind.SHAKE_GRIPPER:
-                self.shakeGripper(shake_Hz=1.0)
+                self.shakeGripper(shake_Hz=1.0,shake_width=0.06)
             elif self.motion_request == MotionKind.SHAKE_GRIPPER_FAST:
-                self.shakeGripper(shake_Hz=2.0)
+                self.shakeGripper(shake_Hz=2.0,shake_width=0.06)
 
             self.motion_request = MotionKind.NOTHING
             self.init = True
