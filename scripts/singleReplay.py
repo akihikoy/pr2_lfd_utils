@@ -48,6 +48,7 @@ import skillParse
 import sys
 import os
 import os.path
+import copy
 import dmpExec
 from cmnUtils import *
 
@@ -81,6 +82,8 @@ if __name__ == '__main__':
                     of marker ({goal_frame})
         -plan       plan only (OFF)
         -goal X Y Z specify a new goal ({new_goal})
+        -gth  XXX   specify a goal threshold ({goal_thresh})
+        -pgth XXX   specify a goal threshold of planning ({plan_goal_thresh})
         -help       show help
     EXAMPLE:
       {exe} data/bagfiles/test2/a
@@ -93,8 +96,10 @@ if __name__ == '__main__':
     goal_frame = -1
     plan_only = 0
     new_goal = []
+    goal_thresh = [0.01]*8
+    plan_goal_thresh = [0.001]*8
 
-    usage = usage.format(exe=sys.argv[0], skill_id=skill_id, control_frame=control_frame, goal_frame=goal_frame, new_goal=new_goal)
+    usage = usage.format(exe=sys.argv[0], skill_id=skill_id, control_frame=control_frame, goal_frame=goal_frame, new_goal=new_goal, goal_thresh=goal_thresh[0], plan_goal_thresh=plan_goal_thresh[0])
     #Parse option
     notag_opt=0
     it= iter(sys.argv)
@@ -109,6 +114,8 @@ if __name__ == '__main__':
             elif a=='-gf': goal_frame = int(it.next())
             elif a=='-plan': plan_only = 1
             elif a=='-goal': new_goal = [float(it.next()), float(it.next()), float(it.next())]
+            elif a=='-gth': goal_thresh = [float(it.next())]*8
+            elif a=='-pgth': plan_goal_thresh = [float(it.next())]*8
             else:
                 if notag_opt==0: basename = a+'/'
                 elif notag_opt==1: skill_id = int(a)
@@ -124,6 +131,8 @@ if __name__ == '__main__':
     print 'goal_frame = ',goal_frame
     print 'plan_only = ',plan_only
     print 'new_goal = ',new_goal
+    print 'goal_thresh = ',goal_thresh
+    print 'plan_goal_thresh = ',plan_goal_thresh
     print '-------------------------'
 
     if basename=='': print usage; sys.exit(0)
@@ -188,11 +197,12 @@ if __name__ == '__main__':
         else:
             traj_data = arm_control_data
 
-        demo_start = traj_data[0]
-        demo_goal = traj_data[-1]
+        demo_start = copy.deepcopy(traj_data[0])
+        demo_goal = copy.deepcopy(traj_data[-1])
         print "Demo goal: ", demo_goal
         if len(new_goal) > 0:
             demo_goal[0:len(new_goal)] = new_goal
+        print "Demo goal(?): ", traj_data[-1]
         print "Current goal: ", demo_goal
 
 
@@ -204,9 +214,9 @@ if __name__ == '__main__':
         #no_exec = True
         
         if(goal_frame >= 0):
-            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf, marker_goal=marker_goal_data[0])
+            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf, marker_goal=marker_goal_data[0], goal_thresh=goal_thresh, plan_goal_thresh=plan_goal_thresh)
         else:
-            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf)     
+            dmp_exec.executeDMP(whicharm, tau, dmp_list, demo_start, demo_goal, plan_only_no_exec=plan_only, goal_frame=gf, goal_thresh=goal_thresh, plan_goal_thresh=plan_goal_thresh)
 
      
       

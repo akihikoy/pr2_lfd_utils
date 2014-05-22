@@ -138,8 +138,8 @@ if __name__ == '__main__':
                     right_num += topic['messages']
             print "L/R:", left_num, right_num
             #User needs to choose if it is difficult to decide automatically
-            #3 is a magic number
-            if abs(left_num-right_num)<3:
+            #10 is a magic number
+            if abs(left_num-right_num)<10:
                 print "Choose left arm(y) or right arm(n)"
                 if ask_yes_no():
                     whicharm = 1

@@ -17,6 +17,7 @@ import tf
 import subprocess
 import os
 import signal
+import copy
 
 
 #There must be a planning scene or FK / IK crashes
@@ -27,6 +28,13 @@ def setupPlanningScene():
     req = arm_navigation_msgs.srv.SetPlanningSceneDiffRequest()
     setPlan(req)
     print 'OK'
+
+
+class MotionKind:
+    NOTHING = 0
+    ARMS_TO_SIDE = 1
+    SHAKE_GRIPPER = 2
+    SHAKE_GRIPPER_FAST = 3
 
 
 class TeleopCart:
@@ -47,7 +55,7 @@ class TeleopCart:
         self.init = True
         self.reset = True
         self.curr_x=[[0.0]*7, [0.0]*7]
-        self.whicharm = 0
+        self.whicharm = 1
 
         self.linear_speed = [0.01,0.01,0.01]
         #self.linear_speed = [0.005,0.005,0.005]
@@ -59,7 +67,7 @@ class TeleopCart:
         self.deadman = False
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
         self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
-        self.pose_request = 0  # move to a predefined pose
+        self.motion_request = MotionKind.NOTHING  # predefined motion
 
         #Recorder setup:
         self.base_path = base_path+'/'
@@ -89,8 +97,8 @@ class TeleopCart:
 
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
         self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
-        self.pose_request = 0  # move to a predefined pose
-        
+        self.motion_request = MotionKind.NOTHING  # predefined motion
+
         if self.joy_kind == JoyKind.PS3:
 
             if msg.buttons[8] == 0:
@@ -123,7 +131,7 @@ class TeleopCart:
                 if msg.buttons[11] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort[self.whicharm],False);
                 else:
-	            self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
             if msg.buttons[15] == 1:
                 if msg.buttons[11] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
@@ -132,8 +140,12 @@ class TeleopCart:
 
             #Move arms to side
             if msg.buttons[12] == 1:
-                self.pose_request = 1
-                #self.moveArmsToSide()
+                self.motion_request = MotionKind.ARMS_TO_SIDE
+            if msg.buttons[14] == 1:
+                if msg.buttons[5] == 0:
+                    self.motion_request = MotionKind.SHAKE_GRIPPER
+                else:
+                    self.motion_request = MotionKind.SHAKE_GRIPPER_FAST
 
             if msg.buttons[3] == 1:
                 self.startRecord()
@@ -168,15 +180,25 @@ class TeleopCart:
                 self.whicharm = 0
                 print "Arm has switched to right"
 
-            if(msg.axes[5] >= 0.9):
-                self.mu.arm[self.whicharm].makeGripperRequest(0.09,False);
-            elif(msg.axes[5] <= -0.9):
-                self.mu.arm[self.whicharm].makeGripperRequest(0.0,False);
+            if msg.buttons[1] == 1:
+                if msg.buttons[5] == 0:
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort[self.whicharm],False);
+                else:
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
+            if msg.buttons[3] == 1:
+                if msg.buttons[5] == 0:
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
+                else:
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_string[self.whicharm],False);
 
             #Move arms to side
             if msg.buttons[0] == 1:
-                self.pose_request = 1
-                #self.moveArmsToSide()
+                self.motion_request = MotionKind.ARMS_TO_SIDE
+            if msg.buttons[2] == 1:
+                if msg.buttons[5] == 0:
+                    self.motion_request = MotionKind.SHAKE_GRIPPER
+                else:
+                    self.motion_request = MotionKind.SHAKE_GRIPPER_FAST
 
             if msg.buttons[8] == 1:
                 self.startRecord()
@@ -197,11 +219,15 @@ class TeleopCart:
 
     def controlCart(self):
 
-        if self.pose_request > 0:
-            if self.pose_request == 1:
+        if self.motion_request != MotionKind.NOTHING:
+            if self.motion_request == MotionKind.ARMS_TO_SIDE:
                 self.moveArmsToSide()
+            elif self.motion_request == MotionKind.SHAKE_GRIPPER:
+                self.shakeGripper(shake_Hz=1.0)
+            elif self.motion_request == MotionKind.SHAKE_GRIPPER_FAST:
+                self.shakeGripper(shake_Hz=2.0)
 
-            self.pose_request = 0
+            self.motion_request = MotionKind.NOTHING
             self.init = True
             self.reset = True
 
@@ -308,6 +334,27 @@ class TeleopCart:
         else:
             print "Right arm is already at the goal ({diff})".format(diff=diff)
         print "Done"
+
+
+    def shakeGripper(self,shake_Hz=2.0,shake_width=0.04):
+        self.deadman = False
+        self.init = True
+        self.reset = True
+        i = self.whicharm
+        self.mu.arm[i].traj_client.wait_for_result()
+        self.mu.arm[i].cart_exec.traj_client.wait_for_result()
+        q = self.mu.arm[i].getCurrentPosition()
+        p = self.mu.arm[i].cart_exec.makeFKRequest(q)
+        g = self.mu.arm[i].getGripPoseInfo()[0]
+        p2 = copy.deepcopy(p)
+        p2[2] += shake_width
+        cart_pos=[p2,p,p2,p]
+        grip_traj=[g,g,g,g]
+        print cart_pos
+        dt = 2.0/shake_Hz/5.0
+        splice_time = rospy.Time.now()
+        blocking = True
+        self.mu.arm[i].followCartTraj(cart_pos, grip_traj, dt, splice_time, blocking)
 
 
     def startRecord(self):

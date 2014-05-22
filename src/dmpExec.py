@@ -64,6 +64,19 @@ class DMPExec:
             self.move_utils.commandARHeadTrack(-1)
 
 
+    def saveDMPTrajToFile(self,traj,file_name):
+        N = len(traj.points)
+        if N != len(traj.times):
+            rospy.logerr('Invalid DMPTraj')
+            print traj
+            sys.exit(1)
+        print 'Writing trajectory data into ',file_name
+        fp = open(file_name,'w')
+        for i in range(N):
+            fp.write( str(traj.times[i])+' '+' '.join(map(str,traj.points[i].positions))+'\n' )
+        fp.close()
+
+
     def makeLFDRequest(self, dims, traj, dt, K_gain, D_gain, num_bases):
         demotraj = dmp.msg.DMPTraj()
         
@@ -76,6 +89,7 @@ class DMPExec:
         k_gains = [K_gain]*dims
         d_gains = [D_gain]*dims
         
+        self.saveDMPTrajToFile(demotraj,"data/demo.txt")
         print "Starting LfD..."
         rospy.wait_for_service('learn_dmp_from_demo')
         try:
@@ -229,7 +243,8 @@ class DMPExec:
                     
             resp = self.makePlanRequest(x_0_cart, x_dot_0_cart, t_0, goal, plan_goal_thresh, seg_length, tau, dt, integrate_iter)
             plan = resp.plan
-            
+            self.saveDMPTrajToFile(plan,"data/plan.txt")
+
             #Get gripper data from plan
             gripper_data = []
             for p in plan.points:

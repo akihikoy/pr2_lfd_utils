@@ -143,8 +143,8 @@ class Bag2Mat:
         
         print "ctrl/mann:", controller_num, mannequin_num
         #User needs to choose if it is difficult to decide automatically  
-        #3 is a magic number
-        if abs(controller_num-mannequin_num)<3:
+        #10 is a magic number
+        if abs(controller_num-mannequin_num)<10:
             print "Choose controller file(y) or mannequin file(n)"
             if ask_yes_no():
                 self.pos_topic_name = self.cont_pos_topic_name
