@@ -138,14 +138,15 @@ class ArmMoveUtils:
     ## @brief Move the joints to specified joint angles
     ## @param angles The set of angles to move to
     ## @param deuration The duration of the movement
-    def moveToJointAngle(self, angles, deuration=1.0):
+    def moveToJointAngle(self, angles, deuration=1.0, blocking = 1):
         jp = JointTrajectoryPoint()
         jp.positions = angles
         jp.time_from_start = rospy.Duration(deuration);
         self.goal.trajectory.points.append(jp)
         self.goal.trajectory.header.stamp = rospy.Time.now()
         self.traj_client.send_goal(self.goal)
-        self.traj_client.wait_for_result()
+        if blocking:
+            self.traj_client.wait_for_result()
         self.goal.trajectory.points = []
         
     
@@ -224,6 +225,26 @@ class ArmMoveUtils:
         self.cart_exec.followCartTraj(x_vec, grip_traj, dt, start_angles, splice_time, blocking)
     
     
+    def moveToCartPos(self, x, dt, blocking = 0):
+        self.pos_lock.acquire()
+        start_angles = copy.deepcopy(self.curr_pos)
+        self.pos_lock.release()
+        self.curr_traj_point = -1
+
+        #Make sure quaternion is normalized
+        x[3:7] = x[3:7] / la.norm(x[3:7])
+        #Get the inverse kinematic solution for joint angles
+        resp = self.cart_exec.makeIKRequest(x, start_angles)
+
+        self.last_error_code = resp.error_code.val
+        if(resp.error_code.val == 1):
+            angles = resp.solution.joint_state.position
+            self.cart_exec.modifyForJointLimitsSimple(start_angles,angles,dt)
+            self.moveToJointAngle(angles, dt, blocking)
+        else:
+            print "IK error", resp.error_code.val
+
+
     def getCartTrajStatsAtTime(self,time):
         delay_ind = self.cart_exec.getOrigTrajPointAtTime(time)
         [delay_joints, delay_grip] = self.cart_exec.getPredictedJointPoseAtTime(time)

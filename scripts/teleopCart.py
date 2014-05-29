@@ -62,8 +62,13 @@ class TeleopCart:
         self.angular_speed = [0.05,0.05,0.05]
         self.time_step = 0.05
         self.gripper_max_effort = [12.0,15.0]  # gripper's max effort when closing (right,left). -1: do not limit, 50: close gently
-        self.gripper_max_effort_string = [50.0,50.0]
+        self.gripper_max_effort_strong = [50.0,50.0]
 
+        #Extended IK
+        self.using_extended_ik = True
+        self.control_frame = [[0.2,0.0,0.0, 0.0,0.0,0.0,1.0]]*2
+
+        #Current state:
         self.deadman = False
         self.dx_vec = [0.0, 0.0, 0.0]  # linear velocity
         self.w_vec = [0.0, 0.0, 0.0]  # angular velocity
@@ -131,12 +136,12 @@ class TeleopCart:
                 if msg.buttons[11] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort[self.whicharm],False);
                 else:
-                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_strong[self.whicharm],False);
             if msg.buttons[15] == 1:
                 if msg.buttons[11] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
                 else:
-                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_string[self.whicharm],False);
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_strong[self.whicharm],False);
 
             #Move arms to side
             if msg.buttons[12] == 1:
@@ -184,12 +189,12 @@ class TeleopCart:
                 if msg.buttons[5] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort[self.whicharm],False);
                 else:
-                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_string[self.whicharm],False);
+                    self.mu.arm[self.whicharm].commandGripper(0.09,self.gripper_max_effort_strong[self.whicharm],False);
             if msg.buttons[3] == 1:
                 if msg.buttons[5] == 0:
                     self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort[self.whicharm],False);
                 else:
-                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_string[self.whicharm],False);
+                    self.mu.arm[self.whicharm].commandGripper(0.0,self.gripper_max_effort_strong[self.whicharm],False);
 
             #Move arms to side
             if msg.buttons[0] == 1:
@@ -270,25 +275,50 @@ class TeleopCart:
                 self.mu.arm[1].cart_exec.resetIK()
                 #return
 
-        dx_vec_e = self.dx_vec+[0.0]*4
-        cart_pos = [(np.array(self.curr_x[i])+np.array(dx_vec_e)).tolist()]
-        w_vec_norm = la.norm(self.w_vec)
-        if w_vec_norm > 1.0e-4:
-            rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+        if not self.using_extended_ik:
+            dx_vec_e = self.dx_vec+[0.0]*4
+            cart_pos = (np.array(self.curr_x[i])+np.array(dx_vec_e)).tolist()
+            w_vec_norm = la.norm(self.w_vec)
+            if w_vec_norm > 1.0e-4:
+                rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+            else:
+                rot = [0.,0.,0.,1.]
+            cart_pos[3:7] = tf.transformations.quaternion_multiply(rot,cart_pos[3:7])
         else:
-            rot = [0.,0.,0.,1.]
-        cart_pos[0][3:7] = tf.transformations.quaternion_multiply(rot,cart_pos[0][3:7])
+            l_p = np.array(self.control_frame[i][0:3])
+            l_R = tf.transformations.quaternion_matrix(self.control_frame[i][3:7])[:3,:3]
+            curr_p = np.array(self.curr_x[i][0:3])
+            curr_R = tf.transformations.quaternion_matrix(self.curr_x[i][3:7])[:3,:3]
+            curr_pe = np.dot(curr_R,l_p) + curr_p
+            curr_Re = np.dot(curr_R,l_R)
+            w_vec_norm = la.norm(self.w_vec)
+            if w_vec_norm > 1.0e-4:
+                rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+            else:
+                rot = [0.,0.,0.,1.]
+            p_d = curr_pe + self.dx_vec
+            R_d = np.dot(tf.transformations.quaternion_matrix(rot)[:3,:3],curr_Re)
+            pw_d = p_d - np.dot(R_d,np.dot(l_R.T,l_p))
+            Rw_d = np.dot(R_d,l_R.T)
+
+            Mw_d = tf.transformations.identity_matrix()
+            Mw_d[:3,:3] = Rw_d
+            cart_pos = list(pw_d)+[0.0]*4
+            cart_pos[3:7] = tf.transformations.quaternion_from_matrix(Mw_d)
 
         print "Target= "+str(cart_pos)
         #grip_traj = [0.0]
-        grip_traj = [self.mu.arm[i].getGripPoseInfo()[0]]  # keep the current position
+        #grip_traj = [self.mu.arm[i].getGripPoseInfo()[0]]  # keep the current position
         dt = self.time_step
         splice_time = rospy.Time.now()
         blocking = False
-        self.mu.arm[i].followCartTraj(cart_pos, grip_traj, dt, splice_time, blocking)
+        self.mu.arm[i].moveToCartPos(cart_pos, dt, blocking)
+        #self.mu.arm[i].followCartTraj(cart_pos, grip_traj, dt, splice_time, blocking)
         #self.mu.arm[i].cart_exec.followCartTraj(cart_pos, grip_traj, dt, q[i], splice_time, blocking)
-        print "Error code= "+str(self.mu.arm[i].cart_exec.last_error_code)
-        if self.mu.arm[i].cart_exec.last_error_code != 1:
+        #print "Error code= "+str(self.mu.arm[i].cart_exec.last_error_code)
+        #if self.mu.arm[i].cart_exec.last_error_code != 1:
+        print "Error code= "+str(self.mu.arm[i].last_error_code)
+        if self.mu.arm[i].last_error_code != 1:
             self.init = True
             self.reset = True
             #self.mu.arm[i].cart_exec.traj_client.wait_for_result()

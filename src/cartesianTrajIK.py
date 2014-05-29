@@ -219,8 +219,22 @@ class CartesianTrajExecIK():
 
         return [new_arm_points, new_grip_points]
                 
-    
-    
+
+
+    #Simplified version of modifyForJointLimits
+    #If transition over dt is within joint velocity limits, then just return the point to be added to the arm and gripper trajs
+    #Otherwise, return acceptable point
+    def modifyForJointLimitsSimple(self, p1, p2, t_diff):
+        #First, find the joint that has the worst diff to limit ratio, since it will take the most spacing
+        diffs = [p2[d]-p1[d] for d in range(0,7)]
+        ratios = [math.fabs(diffs[d] / t_diff) / self.vel_limits[d] for d in range(0,7)]
+        max_r = max(ratios)
+        if(max_r > 1.0):
+            return [p1[d] + (diffs[d]/max_r) for d in range(0,7)]
+        else:
+            return p2
+
+
     #Returns the index of the point in the current respaced trajectory that will be active (i.e. robot heading towards) at rostime time 
     def getAdjustedTrajPointAtTime(self,time):
         base_time = self.traj_goal.trajectory.header.stamp
