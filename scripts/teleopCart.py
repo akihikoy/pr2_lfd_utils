@@ -66,7 +66,7 @@ class TeleopCart:
 
         #Extended IK
         self.using_extended_ik = True
-        self.control_frame = [[0.2,0.0,0.0, 0.0,0.0,0.0,1.0]]*2
+        self.control_frame = [[0.16,0.0,0.0, 0.0,0.0,0.0,1.0]]*2
 
         #Current state:
         self.deadman = False
@@ -432,8 +432,8 @@ if __name__ == '__main__':
     joy_kind = rospy.get_param('~joy_kind', 'default')
     base_path = rospy.get_param('~base_path', 'data/bagfiles')
     tc = TeleopCart(strToJoyKind(joy_kind), base_path)
-    r = rospy.Rate(150)
-    #r = rospy.Rate(50)
+    #r = rospy.Rate(150)
+    r = rospy.Rate(20)
     while not rospy.is_shutdown():
       tc.controlCart()
       r.sleep()
