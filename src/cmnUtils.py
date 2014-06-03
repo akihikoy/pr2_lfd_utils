@@ -3,6 +3,7 @@ import sys
 import math
 import copy
 import numpy as np
+import numpy.linalg as la
 import roslib; roslib.load_manifest('rospy')
 import rospy
 import trajectory_msgs.msg
@@ -28,6 +29,34 @@ def AngleMod1(q):
 #Convert radian to [0,2*pi)
 def AngleMod2(q):
   return Mod(q,math.pi*2.0)
+
+
+def GetWedge(w):
+  wedge= np.zeros((3,3))
+  wedge[0,0]=0.0;    wedge[0,1]=-w[2];  wedge[0,2]=w[1]
+  wedge[1,0]=w[2];   wedge[1,1]=0.0;    wedge[1,2]=-w[0]
+  wedge[2,0]=-w[1];  wedge[2,1]=w[0];   wedge[2,2]=0.0
+  return wedge
+
+def Rodrigues(w, epsilon=1.0e-6):
+  th= la.norm(w)
+  if th<epsilon:  return np.identity(3)
+  w_wedge= GetWedge(w *(1.0/th))
+  return np.identity(3) + w_wedge * math.sin(th) + np.dot(w_wedge,w_wedge) * (1.0-math.cos(th))
+
+def InvRodrigues(R, epsilon=1.0e-6):
+  alpha= (R[0,0]+R[1,1]+R[2,2] - 1.0) / 2.0
+
+  if (alpha-1.0 < epsilon) and (alpha-1.0 > -epsilon):
+    return np.array([0.0,0.0,0.0])
+  else:
+    w= np.zeros(3)
+    th = math.acos(alpha)
+    tmp= 0.5 * th / math.sin(th)
+    w[0] = tmp * (R[2,1] - R[1,2])
+    w[1] = tmp * (R[0,2] - R[2,0])
+    w[2] = tmp * (R[1,0] - R[0,1])
+    return w
 
 
 #Interpolate (p1,v1)-(p2,v2) of duration with num_p points and store into traj_points
