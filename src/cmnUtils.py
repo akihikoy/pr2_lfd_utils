@@ -32,21 +32,22 @@ def AngleMod2(q):
 
 #Interpolate (p1,v1)-(p2,v2) of duration with num_p points and store into traj_points
 #(p1,v1) is not contained.  traj_points should have the size num_p
-def InterpolateLinearly1(traj_points,p1,v1,p2,v2,duration,num_p):
-  if len(traj_points)!=num_p:
-    rospy.logerr('Error in InterpolateLinearly1: len(traj_points)!=num_p')
-    sys.exit(1)
-  p= np.array(p1).copy()
-  v= np.array(v1).copy()
-  dt= duration/float(num_p)
-  dp= (p2-p1)/float(num_p)
-  dv= (v2-v1)/float(num_p)
-  for i in range(num_p):
-    p+= dp
-    v+= dv
-    traj_points[i].time_from_start= rospy.Duration(dt*(i+1.0))
-    traj_points[i].positions= p.copy()
-    traj_points[i].velocities= v.copy()
+#FIXME: do not use velocities!!!
+#def InterpolateLinearly1(traj_points,p1,v1,p2,v2,duration,num_p):
+  #if len(traj_points)!=num_p:
+    #rospy.logerr('Error in InterpolateLinearly1: len(traj_points)!=num_p')
+    #sys.exit(1)
+  #p= np.array(p1).copy()
+  #v= np.array(v1).copy()
+  #dt= duration/float(num_p)
+  #dp= (p2-p1)/float(num_p)
+  #dv= (v2-v1)/float(num_p)
+  #for i in range(num_p):
+    #p+= dp
+    #v+= dv
+    #traj_points[i].time_from_start= rospy.Duration(dt*(i+1.0))
+    #traj_points[i].positions= p.copy()
+    ##traj_points[i].velocities= v.copy()
 
 
 #Interpolate (p1)-(p2) of duration with time_step and store into traj_points
@@ -76,13 +77,13 @@ def InterpolateLinearly2(traj_points,p1,p2,duration,time_step,rot_adjust=False, 
     p= p1+v*t
     jp.time_from_start= rospy.Duration(t)
     jp.positions= p.copy()
-    jp.velocities= v.copy()
+    #jp.velocities= v.copy()
     traj_points.append(copy.deepcopy(jp))
     t+= time_step
   if t-time_step<=duration:
     p= p1+v*duration
     jp.time_from_start= rospy.Duration(duration)
     jp.positions= p.copy()
-    jp.velocities= v.copy()
+    #jp.velocities= v.copy()
     traj_points.append(copy.deepcopy(jp))
   return duration
