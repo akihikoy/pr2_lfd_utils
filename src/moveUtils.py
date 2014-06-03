@@ -105,6 +105,7 @@ class ArmMoveUtils:
         self.pos_lock = threading.Lock()
         self.cart_pos_lock = threading.Lock()
         self.curr_pos = [0.0]*7
+        self.curr_vel = [0.0]*7
         self.curr_cart_pos = [0.0]*7
 
         rospy.Subscriber(traj_segment_name, Int32, self.trajSegmentCallback)
@@ -112,6 +113,13 @@ class ArmMoveUtils:
 
         self.cart_exec = CartesianTrajExecIK(whicharm)
         rospy.Subscriber(pos_topic_name, JointTrajectoryControllerState, self.armPosCallback)
+
+
+    def resetGoals(self):
+        self.traj_client.cancel_all_goals()
+        self.gripper_client.cancel_all_goals()
+        self.gripper_traj_client.cancel_all_goals()
+        self.cart_exec.resetIK()
 
 
     def gripperStateCallback(self, msg):
@@ -122,6 +130,7 @@ class ArmMoveUtils:
     def armPosCallback(self, msg):
         self.pos_lock.acquire()
         self.curr_pos = msg.actual.positions
+        self.curr_vel = msg.actual.velocities
         self.pos_lock.release()
         
 
@@ -186,7 +195,7 @@ class ArmMoveUtils:
         self.goal.trajectory.points = []
         
         
-    def followJointTrajPlan(self, plan):
+    def followJointTrajPlan(self, plan, blocking=True):
         for i in range(len(plan.points)):
             jp = JointTrajectoryPoint()
             jp.positions = plan.points[i].positions
@@ -197,9 +206,10 @@ class ArmMoveUtils:
         print "Sending joint trajectory for execution..."    
         self.goal.trajectory.header.stamp = rospy.Time.now()
         self.traj_client.send_goal(self.goal)
-        self.traj_client.wait_for_result()
+        if blocking:
+            self.traj_client.wait_for_result()
+            print "Joint trajectory done"
         self.goal.trajectory.points = []
-        print "Joint trajectory done"
     
     
     def followCartTraj(self, x_vec, grip_traj, dt, splice_time, blocking):
@@ -225,17 +235,27 @@ class ArmMoveUtils:
         self.cart_exec.followCartTraj(x_vec, grip_traj, dt, start_angles, splice_time, blocking)
     
     
-    def moveToCartPos(self, x, dt, blocking = 0):
-        self.pos_lock.acquire()
-        start_angles = copy.deepcopy(self.curr_pos)
-        self.pos_lock.release()
-        self.curr_traj_point = -1
+    def makeIKRequest(self, x, v_start_angles=[]):
+        if len(v_start_angles)==0:
+            self.pos_lock.acquire()
+            start_angles = copy.deepcopy(self.curr_pos)
+            self.pos_lock.release()
+        else:
+            start_angles = v_start_angles
 
         #Make sure quaternion is normalized
         x[3:7] = x[3:7] / la.norm(x[3:7])
         #Get the inverse kinematic solution for joint angles
-        resp = self.cart_exec.makeIKRequest(x, start_angles)
+        return self.cart_exec.makeIKRequest(x, start_angles)
 
+
+    def moveToCartPos(self, x, dt, blocking = 0):
+        self.pos_lock.acquire()
+        start_angles = copy.deepcopy(self.curr_pos)
+        self.pos_lock.release()
+
+        resp = self.makeIKRequest(x, start_angles)
+        self.curr_traj_point = -1
         self.last_error_code = resp.error_code.val
         if(resp.error_code.val == 1):
             angles = resp.solution.joint_state.position
@@ -266,6 +286,13 @@ class ArmMoveUtils:
         cp = copy.deepcopy(self.curr_pos)
         self.pos_lock.release()
         return cp
+
+
+    def getCurrentVelocity(self):
+        self.pos_lock.acquire()
+        cv = copy.deepcopy(self.curr_vel)
+        self.pos_lock.release()
+        return cv
 
 
     def getTrajState(self):

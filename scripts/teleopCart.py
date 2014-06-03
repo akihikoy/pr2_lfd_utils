@@ -9,6 +9,7 @@ import actionlib as al
 import moveUtils
 from sensor_msgs.msg import *
 from joyKind import *
+from cmnUtils import *
 import kinematics_msgs.srv
 import pr2_controllers_msgs.msg
 import arm_navigation_msgs.srv
@@ -39,7 +40,7 @@ class MotionKind:
 
 class TeleopCart:
 
-    def __init__(self, joy_kind=JoyKind.default, base_path="data/bagfiles"):
+    def __init__(self, joy_kind=JoyKind.default, time_step=0.05, base_path="data/bagfiles"):
 
         print "Joy kind: "+str(joy_kind)
 
@@ -57,12 +58,15 @@ class TeleopCart:
         self.curr_x=[[0.0]*7, [0.0]*7]
         self.whicharm = 1
 
-        self.linear_speed = [0.01,0.01,0.01]
-        #self.linear_speed = [0.005,0.005,0.005]
-        self.angular_speed = [0.05,0.05,0.05]
-        self.time_step = 0.05
+        self.linear_speed = [0.2,0.2,0.2]
+        self.angular_speed = [1.0,1.0,1.0]
+        self.time_step = time_step
+        self.control_time_step = 0.002
         self.gripper_max_effort = [12.0,15.0]  # gripper's max effort when closing (right,left). -1: do not limit, 50: close gently
         self.gripper_max_effort_strong = [50.0,50.0]
+        self.vel_limits = [0.8, 0.8, 2.0, 2.0, 3.0, 3.0, 10.0]
+        #self.controller_version = 2
+        self.controller_version = 3
 
         #Extended IK
         self.using_extended_ik = True
@@ -239,8 +243,8 @@ class TeleopCart:
         if not self.deadman: return
 
         if self.reset:
-            self.mu.arm[0].cart_exec.resetIK()
-            self.mu.arm[1].cart_exec.resetIK()
+            self.mu.arm[0].resetGoals()
+            self.mu.arm[1].resetGoals()
             self.reset = False
 
         if self.dx_vec == [0.0]*3 and self.w_vec == [0.0]*3: return
@@ -271,16 +275,18 @@ class TeleopCart:
             if err > 0.1:
                 #self.mu.arm[0].moveToJointAngle(q[0])
                 #self.mu.arm[1].moveToJointAngle(q[1])
-                self.mu.arm[0].cart_exec.resetIK()
-                self.mu.arm[1].cart_exec.resetIK()
+                self.mu.arm[0].resetGoals()
+                self.mu.arm[1].resetGoals()
                 #return
+
+        dt = self.time_step
 
         if not self.using_extended_ik:
             dx_vec_e = self.dx_vec+[0.0]*4
-            cart_pos = (np.array(self.curr_x[i])+np.array(dx_vec_e)).tolist()
+            cart_pos = (np.array(self.curr_x[i])+dt*np.array(dx_vec_e)).tolist()
             w_vec_norm = la.norm(self.w_vec)
             if w_vec_norm > 1.0e-4:
-                rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+                rot = tf.transformations.quaternion_about_axis(w_vec_norm*dt,self.w_vec)
             else:
                 rot = [0.,0.,0.,1.]
             cart_pos[3:7] = tf.transformations.quaternion_multiply(rot,cart_pos[3:7])
@@ -293,10 +299,10 @@ class TeleopCart:
             curr_Re = np.dot(curr_R,l_R)
             w_vec_norm = la.norm(self.w_vec)
             if w_vec_norm > 1.0e-4:
-                rot = tf.transformations.quaternion_about_axis(w_vec_norm,self.w_vec)
+                rot = tf.transformations.quaternion_about_axis(w_vec_norm*dt,self.w_vec)
             else:
                 rot = [0.,0.,0.,1.]
-            p_d = curr_pe + self.dx_vec
+            p_d = curr_pe + np.array(self.dx_vec)*dt
             R_d = np.dot(tf.transformations.quaternion_matrix(rot)[:3,:3],curr_Re)
             pw_d = p_d - np.dot(R_d,np.dot(l_R.T,l_p))
             Rw_d = np.dot(R_d,l_R.T)
@@ -307,22 +313,36 @@ class TeleopCart:
             cart_pos[3:7] = tf.transformations.quaternion_from_matrix(Mw_d)
 
         print "Target= "+str(cart_pos)
-        #grip_traj = [0.0]
-        #grip_traj = [self.mu.arm[i].getGripPoseInfo()[0]]  # keep the current position
-        dt = self.time_step
-        splice_time = rospy.Time.now()
-        blocking = False
-        self.mu.arm[i].moveToCartPos(cart_pos, dt, blocking)
-        #self.mu.arm[i].followCartTraj(cart_pos, grip_traj, dt, splice_time, blocking)
-        #self.mu.arm[i].cart_exec.followCartTraj(cart_pos, grip_traj, dt, q[i], splice_time, blocking)
-        #print "Error code= "+str(self.mu.arm[i].cart_exec.last_error_code)
-        #if self.mu.arm[i].cart_exec.last_error_code != 1:
-        print "Error code= "+str(self.mu.arm[i].last_error_code)
-        if self.mu.arm[i].last_error_code != 1:
-            self.init = True
-            self.reset = True
-            #self.mu.arm[i].cart_exec.traj_client.wait_for_result()
-        #time.sleep(dt)
+        if self.controller_version==2:
+            print "Target= "+str(cart_pos)
+            #grip_traj = [0.0]
+            #grip_traj = [self.mu.arm[i].getGripPoseInfo()[0]]  # keep the current position
+            splice_time = rospy.Time.now()
+            blocking = False
+            self.mu.arm[i].moveToCartPos(cart_pos, dt, blocking)
+            #self.mu.arm[i].followCartTraj(cart_pos, grip_traj, dt, splice_time, blocking)
+            #self.mu.arm[i].cart_exec.followCartTraj(cart_pos, grip_traj, dt, q[i], splice_time, blocking)
+            #print "Error code= "+str(self.mu.arm[i].cart_exec.last_error_code)
+            #if self.mu.arm[i].cart_exec.last_error_code != 1:
+            #print "Error code= "+str(self.mu.arm[i].last_error_code)
+            if self.mu.arm[i].last_error_code != 1:
+                self.init = True
+                self.reset = True
+                #self.mu.arm[i].cart_exec.traj_client.wait_for_result()
+            #time.sleep(dt)
+        elif self.controller_version==3:
+            resp = self.mu.arm[i].makeIKRequest(cart_pos)
+            if(resp.error_code.val == 1):
+                angles = np.array(resp.solution.joint_state.position)
+                goal= pr2_controllers_msgs.msg.JointTrajectoryGoal()
+                goal.trajectory.joint_names= self.mu.arm[i].goal.trajectory.joint_names
+                InterpolateLinearly2(goal.trajectory.points, np.array(q[i]), angles, dt, self.control_time_step, rot_adjust=True, vel_limits=self.vel_limits)
+                #blocking = False
+                #self.mu.arm[i].followJointTrajPlan(plan.trajectory, blocking)
+                goal.trajectory.header.stamp= rospy.Time.now()
+                self.mu.arm[i].traj_client.send_goal(goal)
+            else:
+                print "IK error", resp.error_code.val
 
         #q=[[],[]]
         #p=[[],[]]
@@ -330,7 +350,7 @@ class TeleopCart:
         #p[i] = self.mu.arm[i].cart_exec.makeFKRequest(q[i])
         #self.curr_x[i] = p[i]
         #print "Result= "+str(p[i])
-        self.curr_x[i] = cart_pos[0]
+        self.curr_x[i] = cart_pos
 
 
     def moveArmsToSide(self):
@@ -430,10 +450,11 @@ class TeleopCart:
 if __name__ == '__main__':
     rospy.init_node('teleopCartNode')
     joy_kind = rospy.get_param('~joy_kind', 'default')
+    ik_freq = rospy.get_param('~ik_freq', 20)
     base_path = rospy.get_param('~base_path', 'data/bagfiles')
-    tc = TeleopCart(strToJoyKind(joy_kind), base_path)
+    tc = TeleopCart(strToJoyKind(joy_kind), 1.0/float(ik_freq), base_path)
     #r = rospy.Rate(150)
-    r = rospy.Rate(20)
+    r = rospy.Rate(ik_freq)
     while not rospy.is_shutdown():
       tc.controlCart()
       r.sleep()
