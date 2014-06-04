@@ -59,6 +59,22 @@ def InvRodrigues(R, epsilon=1.0e-6):
     return w
 
 
+#Remove radian jumping in trajctory
+#velocities are ignored
+def AngleTrajSmoother(traj_points):
+  if len(traj_points)==0:  return
+  q_prev= np.array(traj_points[0].positions)
+  q_offset= np.array([0]*len(q_prev))
+  for jp in traj_points:
+    q= jp.positions
+    q_diff= np.array(q) - q_prev
+    for d in range(len(q_prev)):
+      if q_diff[d]<-math.pi:  q_offset[d]+=1
+      elif q_diff[d]>math.pi:  q_offset[d]-=1
+    q_prev= copy.deepcopy(q)
+    q[:]= q+q_offset*2.0*math.pi
+
+
 #Interpolate (p1,v1)-(p2,v2) of duration with num_p points and store into traj_points
 #(p1,v1) is not contained.  traj_points should have the size num_p
 #FIXME: do not use velocities!!!
