@@ -2,7 +2,8 @@
 
   <include file="$(find pr2_lfd_utils)/launch/switch_joy_real.launch"/>
 
-<!--   <include file="$(find pr2_3dnav)/both_arms_navigation.launch"/> -->
+  <!--TEST-->
+  <include file="$(find pr2_3dnav)/both_arms_navigation.launch"/>
 
   <include file="$(find pr2_lfd_utils)/launch/lfd_teleop_joystick.launch"/>
 <!--   <include file="$(find pr2_lfd_utils)/launch/manip.launch"/> -->
