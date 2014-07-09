@@ -13,8 +13,8 @@
   <include file="$(find pr2_lfd_utils)/launch/mannequin_controllers.launch"/>
 <!--   <include file="/etc/ros/openni_head.launch"/> -->
 
-  <node type="teleopCart.py" pkg="pr2_lfd_utils" name="teleop_cart_node" output="screen">
+  <!-- <node type="teleopCart.py" pkg="pr2_lfd_utils" name="teleop_cart_node" output="screen">
     <param name="joy_kind" value="PS3" />
-  </node>
+  </node> -->
 
 </launch>
