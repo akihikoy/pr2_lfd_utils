@@ -3,6 +3,7 @@
   <include file="$(find pr2_lfd_utils)/launch/switch_joy_real.launch"/>
 
   <!--TEST-->
+  <param name="use_collision_map" type="bool" value="false"/>
   <include file="$(find pr2_3dnav)/both_arms_navigation.launch"/>
 
   <include file="$(find pr2_lfd_utils)/launch/lfd_teleop_joystick.launch"/>

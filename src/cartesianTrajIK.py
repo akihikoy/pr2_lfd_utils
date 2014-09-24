@@ -135,6 +135,7 @@ class CartesianTrajExecIK():
         except rospy.ServiceException, e:
             print self.FKreq
             print "FK service failure: %s" % str(e) 
+            return None
             
         #Get the cartesian pose of the wrist_roll_joint    
         cartPos = response.pose_stamped[0].pose
